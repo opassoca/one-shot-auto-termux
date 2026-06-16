@@ -158,6 +158,11 @@ Copyright (C) 2026 chickendrop89
         help='Use custom file with vulnerable devices list'
     )
     adv_group.add_argument(
+        '--update',
+        action='store_true',
+        help='Check for updates and update the script'
+    )
+    adv_group.add_argument(
         '-v', '--verbose',
         action='store_true',
         help='Verbose output'

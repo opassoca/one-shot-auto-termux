@@ -107,40 +107,14 @@ def killInterfering():
                 continue
             try:
                 cmdline = _getProcessCommand(pid)
-...
-def restoreProcesses():
-    """Restore processes that were previously killed."""
+                os.kill(pid, 15)
+                logger.warning(f"Terminated process {pname} (PID {pid})")
+                killed_processes.append((pid, pname, cmdline))
+                time.sleep(1.5)
+            except OSError as e:
+                logger.error(f"Failed to terminate {pname} (PID {pid}): {e}")
 
-    killed_file = os.path.join(SESSIONS_DIR, 'killed_processes.json')
-
-    if not os.path.exists(killed_file):
-        return
-
-    try:
-        with open(killed_file, 'r', encoding='utf-8') as f:
-            killed_processes = json.load(f)
-    except (IOError, json.JSONDecodeError) as e:
-        logger.error(f"Failed to read killed processes file: {e}")
-        return
-
-    for pid, pname, cmdline in killed_processes:
-        if not cmdline:
-            logger.warning(f"Cannot restore {pname} (PID {pid}): command line not available")
-            continue
-
-        try:
-            subprocess.Popen(cmdline,
-                shell=True, stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            )
-            logger.info(f"Restored process {pname}")
-        except (OSError, subprocess.CalledProcessError) as e:
-            logger.error(f"Failed to restore {pname}: {e}")
-
-    try:
-        os.remove(killed_file)
-    except OSError:
-        pass
+        _saveKilledProcesses(killed_processes)
 
 def ifaceCtl(interface: str, action: str):
     """Put an interface up or down."""
@@ -235,3 +209,37 @@ def die(text: str):
     """Print an error and exit with non-zero exit code."""
 
     sys.exit(f'[!] {text} \n')
+
+def restoreProcesses():
+    """Restore processes that were previously killed."""
+
+    killed_file = os.path.join(SESSIONS_DIR, 'killed_processes.json')
+
+    if not os.path.exists(killed_file):
+        return
+
+    try:
+        with open(killed_file, 'r', encoding='utf-8') as f:
+            killed_processes = json.load(f)
+    except (IOError, json.JSONDecodeError) as e:
+        logger.error(f"Failed to read killed processes file: {e}")
+        return
+
+    for pid, pname, cmdline in killed_processes:
+        if not cmdline:
+            logger.warning(f"Cannot restore {pname} (PID {pid}): command line not available")
+            continue
+
+        try:
+            subprocess.Popen(cmdline,
+                shell=True, stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+            logger.info(f"Restored process {pname}")
+        except (OSError, subprocess.CalledProcessError) as e:
+            logger.error(f"Failed to restore {pname}: {e}")
+
+    try:
+        os.remove(killed_file)
+    except OSError:
+        pass

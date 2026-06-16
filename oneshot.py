@@ -1,20 +1,11 @@
 #!/usr/bin/env python
 
-#  OneShot (WPS penetration testing utility) is a fork of the tool with extra features
+#  oneshot (WPS penetration testing utility) is a fork of the tool with extra features
 #  Copyright (C) 2026 chickendrop89
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
 
 import os
 import sys
+import subprocess
 
 # pylint: disable=wrong-import-position
 if sys.version_info < (3, 10):
@@ -30,6 +21,25 @@ import src.wps.connection
 import src.wps.bruteforce
 import src.utils
 import src.args
+
+VERSION = "1.1.0"
+
+def checkUpdates():
+    """Check for updates from GitHub"""
+    logger.info("[*] Verificando atualizações no Beach Hub...")
+    try:
+        # Tenta dar um git pull silencioso
+        result = subprocess.run(
+            ['git', 'pull', 'origin', 'master'],
+            capture_output=True, text=True, cwd=os.path.dirname(__file__)
+        )
+        if "Already up to date" in result.stdout:
+            logger.success("[+] O script já está na versão mais recente.")
+        else:
+            logger.success("[!] Script atualizado automaticamente! Reinicie para aplicar.")
+            sys.exit(0)
+    except Exception as e:
+        logger.error(f"[-] Falha ao verificar atualizações: {e}")
 
 def checkRequirements():
     """Verify requirements are met"""
@@ -116,6 +126,11 @@ def main():
 
     args = src.args.parseArgs()
     logger.initialize_logging(verbose=args.verbose)
+
+    # Auto-update check
+    if hasattr(args, 'update') and args.update:
+        checkUpdates()
+        sys.exit(0)
 
     # Android-specific interference check
     if not args.dont_touch_settings:
