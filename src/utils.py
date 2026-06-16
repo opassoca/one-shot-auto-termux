@@ -149,9 +149,7 @@ def restoreProcesses():
 
 def ifaceCtl(interface: str, action: str):
     """Put an interface up or down."""
-
     command = ['ip', 'link', 'set', f'{interface}', f'{action}']
-
     try:
         command_output = subprocess.run(command,
             encoding='utf-8', stdout=subprocess.PIPE,
@@ -159,30 +157,11 @@ def ifaceCtl(interface: str, action: str):
         )
     except (subprocess.CalledProcessError, FileNotFoundError) as error:
         logger.error(f'Can not control interface with ip link: \n {error}')
+        return 1
 
     command_output_stripped = command_output.stdout.strip()
-
-    if isAndroid() is False:
-        def _rfKillUnblock():
-            rfkill_command = ['rfkill', 'unblock', 'wifi']
-
-            if not which(rfkill_command[0]):
-                logger.warning('rfkill utility is not available, unable to do anything')
-                return
-
-            try:
-                subprocess.run(rfkill_command, check=True)
-            except (subprocess.CalledProcessError, FileNotFoundError) as error:
-                logger.error(f'Failed to unblock interface, not continuing: \n {error}')
-
-        if 'RF-kill' in command_output_stripped:
-            logger.warning('RF-kill is blocking the interface, unblocking')
-            _rfKillUnblock()
-            return
-
     if command_output.returncode != 0:
         logger.error(command_output_stripped)
-
     return command_output.returncode
 
 def isInterfaceUp(interface: str) -> bool:

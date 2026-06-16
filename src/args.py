@@ -142,11 +142,6 @@ Copyright (C) 2026 chickendrop89
         help='Down network interface when the work is finished'
     )
     adv_group.add_argument(
-        '-M', '--mtk-wifi',
-        action='store_true',
-        help='Activate MediaTek Wi-Fi interface driver on startup and deactivate it on exit'
-    )
-    adv_group.add_argument(
         '-D', '--dont-touch-settings',
         action='store_true',
         help="Don't touch the Android Wi-Fi settings on startup and exit"

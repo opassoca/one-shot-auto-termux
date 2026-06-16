@@ -185,13 +185,11 @@ class Initialize:
 
     def _initWpaSupplicant(self):
         """Initializes wpa_supplicant with the specified configuration"""
-
         logger.info('Running wpa_supplicant…')
-
         wpa_supplicant_cmd = ['wpa_supplicant']
         wpa_supplicant_cmd.extend([
             '-K', '-d',
-            '-Dnl80211,wext,hostapd,wired',
+            '-Dnl80211,wext',
             f'-i{self.INTERFACE}',
             f'-c{self.TEMPCONF}'
         ])

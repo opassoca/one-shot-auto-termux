@@ -260,32 +260,28 @@ class WiFiScanner:
         # Used to calculate the max width of a collum in the network list table
         columm_lengths = {
             '#': 4,
-            'sec': entryMaxLength('Security type'),
+            'sec': 10,
             'bssid': 18,
-            'essid': entryMaxLength('ESSID'),
-            'name': entryMaxLength('Device name'),
-            'model': entryMaxLength('Model')
+            'essid': entryMaxLength('ESSID', max_length=15),
+            'model': entryMaxLength('Model', max_length=15)
         }
 
-        row = '{:<{#}} {:<{bssid}} {:<{essid}} {:<{sec}} {:<{#}} {:<{#}} {:<{name}} {:<{model}}'
+        row = '{:<{#}} {:<{bssid}} {:<{essid}} {:<{sec}} {:<{#}} {:<{model}}'
 
         print(row.format(
-            '#', 'BSSID', 'ESSID', 'Sec.', 'PWR', 'Ver.', 'WSC name', 'WSC model',
+            '#', 'BSSID', 'ESSID', 'Sec.', 'PWR', 'Model',
             **columm_lengths
         ))
 
         if args.reverse_scan:
             network_list_items = network_list_items[::-1]
         for n, network in network_list_items:
-            # (FOR COMPATIBILITY) pylint: disable=inconsistent-quotes
-            model = f'{network["Model"]} {network["Model number"]}'
-            essid = truncateStr(network['ESSID'], 25)
-            device_name = truncateStr(network['Device name'], 27)
+            model = truncateStr(f'{network["Model"]}', 15)
+            essid = truncateStr(network['ESSID'], 15)
             number = f'{n})'
             line = row.format(
                 number, network['BSSID'], essid,
-                network['Security type'], network['Level'],
-                network['WPS version'], device_name, model,
+                network['Security type'], network['Level'], model,
                 **columm_lengths
             )
             if (network['BSSID'], network['ESSID']) in self.STORED:

@@ -49,55 +49,26 @@ def checkRequirements():
 
 def setupDirectories():
     """Create required directories"""
-
-    # We recently changed the PIXIEWPS_DIR and SESSIONS_DIR path
-    # Rename older .OSE data dir to .OneShot, and maintain compatibility
-    old_dir = os.path.expanduser('~/.OSE')
-    new_dir = os.path.expanduser('~/.OneShot')
-
-    if os.path.exists(old_dir):
-        try:
-            os.rename(old_dir, new_dir)
-            logger.info('Renamed legacy data directory')
-        except OSError as e:
-            logger.error(f'Failed to rename data directory: {e}')
-
     for directory in [src.utils.SESSIONS_DIR, src.utils.PIXIEWPS_DIR]:
         if not os.path.exists(directory):
             os.makedirs(directory)
 
 def setupAndroidWifi(android_network: src.wifi.android.AndroidNetwork, enable: bool = False):
     """Configure Android-specific WiFi settings"""
-
     if enable:
         android_network.enableWifi()
     else:
         android_network.storeAlwaysScanState()
         android_network.disableWifi()
 
-def setupMediatekWifi(wmt_wifi_device: Path):
-    """Initialize MediaTek WiFi dev"""
-
-    if not wmt_wifi_device.is_char_device():
-        src.utils.die('Unable to activate MediaTek Wi-Fi interface device (--mtk-wifi): '
-                     '/dev/wmtWifi does not exist or it is not a character device')
-
-    wmt_wifi_device.chmod(0o644)
-    wmt_wifi_device.write_text('1', encoding='utf-8')
-
-
 def scanForNetworks(interface: str, vuln_list: list[str]) -> tuple[str, dict] | None:
     """Scan, and prompt user to select network"""
-
     scanner = src.wifi.scanner.WiFiScanner(interface, vuln_list)
     return scanner.promptNetwork()
 
 def handleConnection(args):
     """Main connection logic"""
-
     network_info = {}
-    success = False
-
     if args.bruteforce:
         connection = src.wps.bruteforce.Initialize(args.interface)
     else:
@@ -113,60 +84,38 @@ def handleConnection(args):
             except FileNotFoundError:
                 vuln_list = []
 
-            if not args.loop:
-                logger.info('BSSID not specified (--bssid) — scanning for available networks')
-
             result = scanForNetworks(args.interface, vuln_list)
             if result is None:
                 return
-
             args.bssid, network_info = result
 
         if args.bssid:
-            # We always initialize connection, but if bruteforce or wordlist is needed, 
-            # we use the bruteforce class which wraps connection.
             if args.bruteforce or args.wordlist:
                 brute = src.wps.bruteforce.Initialize(args.interface)
-                
-                # 1. Try Pixie Dust if requested
                 if args.pixie_dust:
                     conn = src.wps.connection.Initialize(args.interface)
-                    success = conn.singleConnection(args.bssid, args.pin)
-                    if success:
-                        # Save to vulnerable list
-                        if args.pixie_dust and network_info:
+                    if conn.singleConnection(args.bssid, args.pin):
+                        if network_info:
                             src.utils.addVulnerableAP(network_info, args.vuln_list)
                         return
-                
-                # 2. Try Wordlist if requested
                 if args.wordlist:
                     if brute.wordlistAttack(args.bssid, args.wordlist):
                         return
-
-                # 3. Try Bruteforce if requested
                 if args.bruteforce:
                     brute.smartBruteforce(args.bssid, args.pin)
             else:
                 connection = src.wps.connection.Initialize(args.interface)
-                success = connection.singleConnection(
-                    args.bssid,
-                    args.pin
-                )
-
-                # Save to vulnerable list
-                if success and args.pixie_dust and network_info:
-                    src.utils.addVulnerableAP(network_info, args.vuln_list)
+                if connection.singleConnection(args.bssid, args.pin):
+                    if args.pixie_dust and network_info:
+                        src.utils.addVulnerableAP(network_info, args.vuln_list)
 
 def main():
-    """Main os-e code"""
-
+    """Main oneshot code"""
     checkRequirements()
     setupDirectories()
 
     args = src.args.parseArgs()
     logger.initialize_logging(verbose=args.verbose)
-
-    src.utils.checkRunningProcesses(args.interface)
 
     if args.kill:
         src.utils.killInterfering()
@@ -174,47 +123,27 @@ def main():
     while True:
         try:
             android_network = src.wifi.android.AndroidNetwork()
-
             if args.clear:
                 src.utils.clearScreen()
 
-            if src.utils.isAndroid() is True and not args.dont_touch_settings and not args.mtk_wifi:
+            if not args.dont_touch_settings:
                 setupAndroidWifi(android_network)
-
-            if args.mtk_wifi:
-                wmt_wifi_device = Path('/dev/wmtWifi')
-                setupMediatekWifi(wmt_wifi_device)
 
             if src.utils.ifaceCtl(args.interface, action='up'):
                 src.utils.die(f'Unable to up interface \'{args.interface}\'')
 
             handleConnection(args)
-
             if not args.loop:
                 break
-
             args.bssid = None
-
         except KeyboardInterrupt:
-            if args.loop:
-                if input('\n[?] Exit the script (otherwise continue to AP scan)? [N/y] ').lower() == 'y':
-                    logger.info('Aborting…')
-                    break
-                args.bssid = None
-            else:
-                logger.info('Aborting…')
-                break
-
+            logger.info('Aborting…')
+            break
         finally:
-            if src.utils.isAndroid() is True and not args.dont_touch_settings and not args.mtk_wifi:
+            if not args.dont_touch_settings:
                 setupAndroidWifi(android_network, enable=True)
-
             if args.iface_down:
                 src.utils.ifaceCtl(args.interface, action='down')
-
-            if args.mtk_wifi:
-                wmt_wifi_device.write_text('0', encoding='utf-8')
-
             if args.restore:
                 src.utils.restoreProcesses()
 
