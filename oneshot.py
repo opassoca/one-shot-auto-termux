@@ -117,7 +117,14 @@ def main():
     args = src.args.parseArgs()
     logger.initialize_logging(verbose=args.verbose)
 
+    # Android-specific interference check
+    if not args.dont_touch_settings:
+        logger.info('[*] Verificando interferência do sistema Android...')
+        android_network = src.wifi.android.AndroidNetwork()
+        setupAndroidWifi(android_network)
+
     if args.kill:
+        # No Android, isso avisa sobre processos no Termux, mas evita processos do sistema
         src.utils.killInterfering()
 
     while True:

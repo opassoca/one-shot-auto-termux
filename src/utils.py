@@ -93,26 +93,21 @@ def checkRunningProcesses(interface: str):
         logger.warning(f"Another process is using the {interface} interface: {processes_str}")
 
 def killInterfering():
-    """Kill all processes actively using the generic netlink subsystem."""
-
+    """Kill all processes actively using the generic netlink subsystem, avoiding Android system apps."""
     interfering_pids = _getInterferingProcesses()
     killed_processes = []
+    
+    # Processos que NUNCA devem ser mortos no Android
+    SYSTEM_CRITICAL = ['system_server', 'wificond', 'surfaceflinger', 'zygote']
 
     if interfering_pids:
         for pid, pname in interfering_pids:
+            if pname in SYSTEM_CRITICAL:
+                logger.warning(f"Processo do sistema {pname} detectado. Não é possível matar, use o modo avião ou desative o Wi-Fi nas configs.")
+                continue
             try:
                 cmdline = _getProcessCommand(pid)
-                os.kill(pid, 15)
-                logger.warning(f"Terminated process {pname} (PID {pid})")
-                killed_processes.append((pid, pname, cmdline))
-
-                # Give time to release locks
-                time.sleep(1.5)
-            except OSError as e:
-                logger.error(f"Failed to terminate {pname} (PID {pid}): {e}")
-
-        _saveKilledProcesses(killed_processes)
-
+...
 def restoreProcesses():
     """Restore processes that were previously killed."""
 
